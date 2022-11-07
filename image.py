@@ -2,6 +2,8 @@ from PIL import Image
 from numpy import array
 import numpy as np
 
+VER = "0.1.1"
+
 class ImageProcessor:
     def __init__(self, image: str) -> None:
         self.image = Image.open(image)
@@ -170,7 +172,7 @@ class ImageProcessor:
             column_buffer = []
             for cn, col in enumerate(row):
                 if len(column_buffer):
-                    column_buffer = [(int(column_buffer[cvn]) + int(col_val)) for cvn, col_val in enumerate(col)]
+                    column_buffer = [int((int(column_buffer[cvn]) + int(col_val))/2) for cvn, col_val in enumerate(col)]
                 else:
                     column_buffer = col
                 if cn % pixel_size == 0:
@@ -198,11 +200,11 @@ class ImageProcessor:
             if last_percent != int(rn/num_of_rows*100) and show_progress:
                 if last_percent >= 0:
                     print("\033[A\033[A")
-                print(f"   Getting Mosaic Shades [{int(rn/num_of_rows*100)}%]")
+                print(f"   Downscaling By Pixel Size [{int(rn/num_of_rows*100)}%]")
             last_percent = int(rn/num_of_rows*100)
         if show_progress:
             print("\033[A\033[A")
-            print(f"   Getting Mosaic Shades [100%]")
+            print(f"   Downscaling By Pixel Size [100%]")
             
         return final_matrix
     
@@ -217,7 +219,10 @@ class ImageProcessor:
                 try:
                     self.matrix[rn][cn] = shades[round(rn/pixel_size)][round(cn/pixel_size)]
                 except:
-                    self.matrix[rn][cn] = array([255,255,255,255])
+                    try:
+                        self.matrix[rn][cn] = array([255,255,255,255])
+                    except:
+                        self.matrix[rn][cn] = array([255,255,255])
             if last_percent != int(rn/num_of_rows*100) and show_progress:
                 if last_percent >= 0:
                     print("\033[A\033[A")
@@ -270,8 +275,4 @@ class ImageProcessor:
         return self
 
 
-if __name__ == "__main__":
-    img = ImageProcessor("shelf.png")
-    print("Processing...")
-    img.cellshade(100).contrast(10).save("shelfEDIT.png")
-    print("Done!")
+
