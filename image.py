@@ -1,8 +1,9 @@
+import math
 from PIL import Image
 from numpy import array
 import numpy as np
 
-VER = "0.1.1"
+VER = "0.2.1"
 
 class ImageProcessor:
     def __init__(self, image: str) -> None:
@@ -151,78 +152,35 @@ class ImageProcessor:
             print(f" Cell Shading [100%]")
         return self
 
-    def _get_max_matrix_vec_len(self, matrix):
-        max_len = 0
-        for vec in matrix:
-            vec_len = len(vec)
-            if vec_len > max_len:
-                max_len = vec_len
-            
-        return max_len
 
-    def _get_avg_mosaic(self, pixel_size, show_progress = False):
+    def downscale(self, pixel_size:int, show_progress=False):
         num_of_rows = len(self.matrix)
         last_percent = -1
-        pix_num_y = len(self.matrix)/pixel_size
-        pix_num_x = len(self.matrix[0])/pixel_size
-        final_matrix = []
-        matrix_buffer_1 = []
-        row_buffer = []
+        ret_matrix = []
         for rn, row in enumerate(self.matrix):
-            column_buffer = []
-            for cn, col in enumerate(row):
-                if len(column_buffer):
-                    column_buffer = [int((int(column_buffer[cvn]) + int(col_val))/2) for cvn, col_val in enumerate(col)]
-                else:
-                    column_buffer = col
-                if cn % pixel_size == 0:
-                    row_buffer.append(column_buffer)
-                    column_buffer = []
-            matrix_buffer_1.append(row_buffer)
-            row_buffer = []
-            if rn % pixel_size == 0:
-                #print(matrix_buffer_1)
-                matrix_buffer_2 = []
-                for mb1cn in range(0, self._get_max_matrix_vec_len(matrix_buffer_1)):
-                    color_avg = array([])
-                    for mb1row in matrix_buffer_1:
-                        #if len(mb1row) <= mb1cn: break
-                        if len(color_avg):
-                            color_avg = array([int((float(color_avg[i])+float(mb1row[mb1cn][i]))/2) for i in range(0, len(color_avg))], dtype = np.uint8)
-                            #print(color_avg)
-                        else:
-                            #print(mb1row[mb1cn])
-                            color_avg = mb1row[mb1cn]
-                    #print(f"ind {mb1cn} vec({color_avg})")
-                    matrix_buffer_2.append(color_avg)
-                final_matrix.append(matrix_buffer_2)
-                matrix_buffer_1 = []
+            if rn%pixel_size == 0:
+                row_buffer = []
+                for cn, column in enumerate(row):
+                    if cn%pixel_size == 0:
+                        row_buffer.append(column)
+                ret_matrix.append(row_buffer)
             if last_percent != int(rn/num_of_rows*100) and show_progress:
                 if last_percent >= 0:
                     print("\033[A\033[A")
-                print(f"   Downscaling By Pixel Size [{int(rn/num_of_rows*100)}%]")
+                print(f" Downscaling [{int(rn/num_of_rows*100)}%]")
             last_percent = int(rn/num_of_rows*100)
         if show_progress:
             print("\033[A\033[A")
-            print(f"   Downscaling By Pixel Size [100%]")
-            
-        return final_matrix
-    
-    def mosaic(self, pixel_size, show_progress=False):
-        num_of_rows = len(self.matrix)
+            print(f" Downscaling [100%]")
+        return ret_matrix
 
+    def mosaic(self, pixel_size:int, show_progress=False):
+        num_of_rows = len(self.matrix)
         last_percent = -1
-        shades = array(self._get_avg_mosaic(pixel_size, show_progress))
-        #print(shades)
+        blur_matrix = self.downscale(pixel_size, show_progress)
         for rn, row in enumerate(self.matrix):
             for cn, column in enumerate(row):
-                try:
-                    self.matrix[rn][cn] = shades[round(rn/pixel_size)][round(cn/pixel_size)]
-                except:
-                    try:
-                        self.matrix[rn][cn] = array([255,255,255,255])
-                    except:
-                        self.matrix[rn][cn] = array([255,255,255])
+                self.matrix[rn, cn] = blur_matrix[math.floor(rn/pixel_size)][math.floor(cn/pixel_size)]
             if last_percent != int(rn/num_of_rows*100) and show_progress:
                 if last_percent >= 0:
                     print("\033[A\033[A")
@@ -231,7 +189,6 @@ class ImageProcessor:
         if show_progress:
             print("\033[A\033[A")
             print(f" Mosaic [100%]")
-        #self.matrix = shades
         return self
 
     def contrast(self, percent, show_progress=False):
@@ -267,6 +224,70 @@ class ImageProcessor:
         if show_progress:
             print("\033[A\033[A")
             print(f" Decontrasting Image [100%]")
+        return self
+
+    # def _get_blur_pallette(self, matrix, intensity:int):
+    #     ret_matrix = []
+    #     for rn, row in enumerate(matrix):
+    #         if rn%intensity == 0:
+    #             row_buffer = []
+    #             for cn, column in enumerate(row):
+    #                 if cn%intensity == 0:
+    #                     row_buffer.append(column)
+    #             ret_matrix.append(row_buffer)
+    #     return ret_matrix
+    def mosaic_blur(self, itterations:int, intensity = 3, show_progress=False):
+        last_percent = -1
+        for i in range(2, itterations):
+            self.mosaic_screen(intensity, i, False)
+            if last_percent != int(i/itterations*100) and show_progress:
+                if last_percent >= 0:
+                    print("\033[A\033[A")
+                print(f" Mosaic Blur [{int(i/itterations*100)}%]")
+            last_percent = int(i/itterations*100)
+        if show_progress:
+            print("\033[A\033[A")
+            print(f" Mosaic Blur [100%]")
+        return self
+
+    def mosaic_screen(self, percent:int, pixel_size:int, show_progress=False):
+        percent /= 100
+        num_of_rows = len(self.matrix)
+        last_percent = -1
+        blur_matrix = self.downscale(pixel_size, show_progress=False)
+        for rn, row in enumerate(self.matrix):
+            for cn, column in enumerate(row):
+                for cvn, col_val in enumerate(column):
+                    #print(int(blur_matrix[math.floor(rn/intensity)][math.floor(cn/intensity)][cvn]) - int(col_val))
+                    self.matrix[rn, cn, cvn] = ((int(blur_matrix[math.floor(rn/pixel_size)][math.floor(cn/pixel_size)][cvn]*percent)) + int(col_val))/(1 + percent)
+            if last_percent != int(rn/num_of_rows*100) and show_progress:
+                if last_percent >= 0:
+                    print("\033[A\033[A")
+                print(f" Mosaic Screen [{int(rn/num_of_rows*100)}%]")
+            last_percent = int(rn/num_of_rows*100)
+        if show_progress:
+            print("\033[A\033[A")
+            print(f" Mosaic Screen [100%]")
+        return self
+    
+    def trippy_pixel(self, percent:int, pixel_size:int, show_progress=False):
+        percent /= 100
+        num_of_rows = len(self.matrix)
+        last_percent = -1
+        blur_matrix = self.downscale(pixel_size, show_progress=False)
+        for rn, row in enumerate(self.matrix):
+            for cn, column in enumerate(row):
+                for cvn, col_val in enumerate(column):
+                    #print(int(blur_matrix[math.floor(rn/intensity)][math.floor(cn/intensity)][cvn]) - int(col_val))
+                    self.matrix[rn, cn, cvn] += ((int(blur_matrix[math.floor(rn/pixel_size)][math.floor(cn/pixel_size)][cvn] * percent)) + int(col_val))/(1+percent)
+            if last_percent != int(rn/num_of_rows*100) and show_progress:
+                if last_percent >= 0:
+                    print("\033[A\033[A")
+                print(f" Trippy Blur [{int(rn/num_of_rows*100)}%]")
+            last_percent = int(rn/num_of_rows*100)
+        if show_progress:
+            print("\033[A\033[A")
+            print(f" Trippy Blur [100%]")
         return self
 
     def save(self, save_as: str):
