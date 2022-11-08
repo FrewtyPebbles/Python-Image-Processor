@@ -226,16 +226,6 @@ class ImageProcessor:
             print(f" Decontrasting Image [100%]")
         return self
 
-    # def _get_blur_pallette(self, matrix, intensity:int):
-    #     ret_matrix = []
-    #     for rn, row in enumerate(matrix):
-    #         if rn%intensity == 0:
-    #             row_buffer = []
-    #             for cn, column in enumerate(row):
-    #                 if cn%intensity == 0:
-    #                     row_buffer.append(column)
-    #             ret_matrix.append(row_buffer)
-    #     return ret_matrix
     def mosaic_blur(self, itterations:int, intensity = 3, show_progress=False):
         last_percent = -1
         for i in range(2, itterations):

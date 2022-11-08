@@ -1,9 +1,10 @@
 from image import ImageProcessor
 
 if __name__ == "__main__":
-    img = ImageProcessor("testimg.jpg")
+    img = ImageProcessor("shelf.png")
     print("Processing...")
-    img.mosaic_blur(20, 10, True)\
-    .save("testimgEDIT.jpg")\
-    .contrast(50, True)
+    img.mosaic_blur(10, 3, True)\
+    .save("shelfEDIT.png")\
+    .contrast(50, True)\
+    .save("shelfEDIT.png")
     print("Done!")
