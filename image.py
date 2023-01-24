@@ -260,25 +260,46 @@ class ImageProcessor:
             print(f" Mosaic Screen [100%]")
         return self
     
-    def trippy_pixel(self, percent:int, pixel_size:int, show_progress=False):
-        percent /= 100
+    def _check_in_range(self,
+                    rgb_threshhold_start:tuple((int, int, int)),
+                    rgb_threshhold_end:tuple((int, int, int)),
+                    rgb_color:tuple((int, int, int))) -> bool:
+        rts = rgb_threshhold_start
+        rte = rgb_threshhold_end
+        rc = rgb_color
+        return (rts[0] <= rc[0] & rc[0] <= rte[0]) &\
+                (rts[1] <= rc[1] & rc[1] <= rte[1]) &\
+                (rts[2] <= rc[2] & rc[2] <= rte[2])
+
+    def color_replace(self,
+                    rgb_threshhold_start:tuple((int, int, int)),
+                    rgb_threshhold_end:tuple((int, int, int)),
+                    rgb_transparent_color:tuple((int, int, int)) = (0,0,0),
+                    show_progress=False):
+        rts = rgb_threshhold_start
+        rte = rgb_threshhold_end
+        rtc = rgb_transparent_color
         num_of_rows = len(self.matrix)
         last_percent = -1
-        blur_matrix = self.downscale(pixel_size, show_progress=False)
         for rn, row in enumerate(self.matrix):
-            for cn, column in enumerate(row):
-                for cvn, col_val in enumerate(column):
-                    #print(int(blur_matrix[math.floor(rn/intensity)][math.floor(cn/intensity)][cvn]) - int(col_val))
-                    self.matrix[rn, cn, cvn] += ((int(blur_matrix[math.floor(rn/pixel_size)][math.floor(cn/pixel_size)][cvn] * percent)) + int(col_val))/(1+percent)
+            for cn, col in enumerate(row):
+                color_to_check = (self.matrix[rn, cn, 0], self.matrix[rn, cn, 1], self.matrix[rn, cn, 2])
+                within_threshhold = self._check_in_range(rts, rte, color_to_check)
+                if within_threshhold:
+                    if len(col) > 3:
+                        self.matrix[rn, cn] = [rtc[0], rtc[1], rtc[2], self.matrix[rn, cn, 3]]
+                    else:
+                        self.matrix[rn, cn] = list(rtc)
             if last_percent != int(rn/num_of_rows*100) and show_progress:
                 if last_percent >= 0:
                     print("\033[A\033[A")
-                print(f" Trippy Blur [{int(rn/num_of_rows*100)}%]")
+                print(f" Color Masking [{int(rn/num_of_rows*100)}%]")
             last_percent = int(rn/num_of_rows*100)
         if show_progress:
             print("\033[A\033[A")
-            print(f" Trippy Blur [100%]")
+            print(f" Color Masking [100%]")
         return self
+        
 
     def save(self, save_as: str):
         save_image = Image.fromarray(self.matrix.astype(np.uint8))
